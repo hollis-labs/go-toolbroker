@@ -1,0 +1,285 @@
+# Default routing rules for the Fragments Engine tool broker.
+# These are loaded automatically when no custom config is provided.
+#
+# Rule structure:
+#   name:     unique identifier for the rule
+#   intent:   which intent triggers this rule ("*" = all intents)
+#   priority: higher values are evaluated first
+#   match:    criteria for selecting tools (patterns, tags, servers)
+#   action:   what to do with matched tools (include, exclude, summarize)
+
+rules:
+  # --- Global rules (apply to all intents) ---
+
+  - name: hide-blueprint-runners
+    intent: "*"
+    priority: 10
+    match:
+      patterns:
+        - "hadron_bp_*"
+    action:
+      type: exclude
+
+  # --- Intent-based blueprint surfacing (ADR-020) ---
+  # These override the blanket exclusion above (priority 15 > 10)
+  # so relevant blueprints appear when intent matches.
+
+  - name: bp-test-lint
+    intent: run_tests
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_test_go_project"
+        - "hadron_bp_lint_go_project"
+    action:
+      type: include
+
+  - name: bp-build
+    intent: run_build
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_build_*"
+    action:
+      type: include
+
+  - name: bp-drift-dependency
+    intent: check_drift
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_dependency_drift_detector"
+    action:
+      type: include
+
+  - name: bp-backup-snapshot
+    intent: backup
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_backup_*"
+        - "hadron_bp_time_machine_snapshot"
+        - "hadron_bp_dotfile_backup"
+    action:
+      type: include
+
+  - name: bp-audit-compliance
+    intent: audit
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_context_audit_*"
+        - "hadron_bp_git_audit_*"
+        - "hadron_bp_otel_compliance_checker"
+        - "hadron_bp_api_contract_validator"
+    action:
+      type: include
+
+  - name: bp-release
+    intent: release
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_tag_release"
+        - "hadron_bp_release_notes_compiler"
+    action:
+      type: include
+
+  - name: bp-docker
+    intent: docker
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_docker_*"
+    action:
+      type: include
+
+  - name: bp-health-status
+    intent: check_health
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_project_health_dashboard"
+        - "hadron_bp_port_conflict_scanner"
+    action:
+      type: include
+
+  - name: bp-standup-report
+    intent: generate_report
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_sprint_standup_generator"
+        - "hadron_bp_codebase_statistics_generator"
+        - "hadron_bp_git_archaeology_report"
+        - "hadron_bp_migration_diff_report"
+        - "hadron_bp_service_dependency_graph"
+        - "hadron_bp_self_documenting_blueprint_index"
+    action:
+      type: include
+
+  - name: bp-cleanup
+    intent: cleanup
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_nightly_cleanup"
+    action:
+      type: include
+
+  - name: bp-grep-search
+    intent: search_code
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_cross_project_grep"
+    action:
+      type: include
+
+  - name: bp-suds-game
+    intent: play_game
+    priority: 15
+    match:
+      patterns:
+        - "hadron_bp_suds_*"
+    action:
+      type: include
+
+  # --- Intent-specific rules ---
+
+  - name: create-task
+    intent: create_task
+    priority: 20
+    match:
+      patterns:
+        - "volon_task_create"
+        - "volon_tasks_list"
+        - "volon_backlog_capture"
+    action:
+      type: include
+
+  - name: list-tasks
+    intent: list_tasks
+    priority: 20
+    match:
+      patterns:
+        - "volon_tasks_list"
+        - "volon_task_get"
+        - "volon_sprints_list"
+    action:
+      type: include
+
+  - name: manage-tasks
+    intent: manage_tasks
+    priority: 20
+    match:
+      patterns:
+        - "volon_task_*"
+        - "volon_tasks_list"
+        - "volon_backlog_*"
+    action:
+      type: include
+
+  - name: plan-sprint
+    intent: plan_sprint
+    priority: 20
+    match:
+      patterns:
+        - "volon_sprint_*"
+        - "volon_sprints_list"
+        - "volon_tasks_list"
+        - "volon_backlog_*"
+    action:
+      type: include
+
+  - name: search-context
+    intent: search_context
+    priority: 20
+    match:
+      patterns:
+        - "cortex_*"
+    action:
+      type: include
+
+  - name: write-context
+    intent: write_context
+    priority: 20
+    match:
+      patterns:
+        - "cortex_context_write"
+        - "cortex_context_typed_write"
+        - "cortex_context_namespace_register"
+    action:
+      type: include
+
+  - name: explore-project
+    intent: explore_project
+    priority: 20
+    match:
+      patterns:
+        - "volon_tasks_list"
+        - "volon_sprints_list"
+        - "volon_task_get"
+        - "cortex_context_view"
+        - "cortex_context_namespaces_list"
+    action:
+      type: include
+
+  - name: search-memory
+    intent: search_memory
+    priority: 20
+    match:
+      patterns:
+        - "cortex_*"
+    action:
+      type: include
+
+  - name: run-blueprint
+    intent: run_blueprint
+    priority: 20
+    match:
+      patterns:
+        - "hadron_blueprints_list"
+        - "hadron_blueprint_get"
+        - "hadron_run_enqueue"
+        - "hadron_run_get"
+        - "hadron_run_events"
+        - "hadron_runs_list"
+    action:
+      type: include
+
+  - name: run-build
+    intent: run_build
+    priority: 20
+    match:
+      patterns:
+        - "hadron_blueprints_list"
+        - "hadron_blueprint_get"
+        - "hadron_run_enqueue"
+        - "hadron_run_get"
+        - "hadron_run_events"
+        - "hadron_runs_list"
+    action:
+      type: include
+
+  - name: check-health
+    intent: check_health
+    priority: 20
+    match:
+      patterns:
+        - "hadron_health"
+        - "volon_health"
+    action:
+      type: include
+
+  - name: schedule-automation
+    intent: schedule_automation
+    priority: 20
+    match:
+      patterns:
+        - "hadron_schedule_*"
+        - "hadron_schedules_list"
+        - "hadron_pipeline_*"
+        - "hadron_pipelines_list"
+    action:
+      type: include
