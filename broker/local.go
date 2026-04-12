@@ -6,12 +6,14 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // LocalBroker is a rule-based tool broker that runs in-process.
 // It applies configurable rules to select tools based on intent and hints.
 // This is the primary implementation for embedding in applications like mentat-chat.
 type LocalBroker struct {
+	mu    sync.RWMutex
 	tools []ToolDefinition
 	rules []Rule
 }
@@ -29,16 +31,22 @@ func NewLocalBroker(tools []ToolDefinition, rules []Rule) *LocalBroker {
 
 // RegisterTools adds tools to the broker's registry.
 func (b *LocalBroker) RegisterTools(tools []ToolDefinition) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.tools = append(b.tools, tools...)
 }
 
 // LoadRules replaces the current rule set.
 func (b *LocalBroker) LoadRules(rules []Rule) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.rules = append([]Rule(nil), rules...)
 }
 
 // AllTools returns lightweight summaries of every registered tool.
 func (b *LocalBroker) AllTools() []ToolSummary {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	summaries := make([]ToolSummary, len(b.tools))
 	for i, t := range b.tools {
 		summaries[i] = ToolSummary{
@@ -67,7 +75,12 @@ func (b *LocalBroker) AllTools() []ToolSummary {
 //     for its matched scope, not a global filter).
 //  6. Build result with rationale.
 func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []string) (*SelectResult, error) {
-	total := len(b.tools)
+	b.mu.RLock()
+	tools := append([]ToolDefinition(nil), b.tools...)
+	rules := append([]Rule(nil), b.rules...)
+	b.mu.RUnlock()
+
+	total := len(tools)
 	if total == 0 {
 		return &SelectResult{
 			Intent:    intent,
@@ -76,8 +89,8 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 	}
 
 	// Sort rules by priority descending.
-	sorted := make([]Rule, len(b.rules))
-	copy(sorted, b.rules)
+	sorted := make([]Rule, len(rules))
+	copy(sorted, rules)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Priority > sorted[j].Priority
 	})
@@ -93,7 +106,7 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 	// No applicable rules — return everything.
 	if len(applicable) == 0 {
 		result := &SelectResult{
-			Tools:     append([]ToolDefinition(nil), b.tools...),
+			Tools:     tools,
 			Count:     total,
 			Total:     total,
 			Intent:    intent,
@@ -111,7 +124,7 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 	for _, r := range applicable {
 		switch r.Action.Type {
 		case "exclude":
-			for i, t := range b.tools {
+			for i, t := range tools {
 				if !excluded[i] && toolMatchesRule(t, r.Match, hints) {
 					excluded[i] = true
 				}
@@ -120,7 +133,7 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 
 		case "include":
 			hasIncludeRule = true
-			for i, t := range b.tools {
+			for i, t := range tools {
 				if toolMatchesRule(t, r.Match, hints) {
 					included[i] = true
 				}
@@ -130,7 +143,7 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 		case "summarize":
 			// For now, summarize acts like include — keeps tools in the set.
 			// Future: mark these tools for summary-only progressive disclosure.
-			for i, t := range b.tools {
+			for i, t := range tools {
 				if toolMatchesRule(t, r.Match, hints) {
 					included[i] = true
 				}
@@ -141,7 +154,7 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 
 	// Build result set.
 	var selected []ToolDefinition
-	for i, t := range b.tools {
+	for i, t := range tools {
 		if excluded[i] {
 			continue
 		}
