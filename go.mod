@@ -1,4 +1,4 @@
-module github.com/hollis-labs/tool-broker
+module github.com/hollis-labs/go-toolbroker
 
 go 1.25.0
 
