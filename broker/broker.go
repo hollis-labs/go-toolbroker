@@ -28,8 +28,8 @@ type ToolDefinition struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"inputSchema,omitempty"`
-	Server      string         `json:"server,omitempty"`   // which MCP server provides this
-	Tags        []string       `json:"tags,omitempty"`     // capability tags
+	Server      string         `json:"server,omitempty"`    // which MCP server provides this
+	Tags        []string       `json:"tags,omitempty"`      // capability tags
 	CostTier    string         `json:"cost_tier,omitempty"` // "free", "low", "high"
 }
 
@@ -46,8 +46,13 @@ type ToolSummary struct {
 // SelectResult contains the selected tools and metadata about the selection.
 type SelectResult struct {
 	Tools     []ToolDefinition `json:"tools"`
-	Count     int              `json:"count"`               // number of tools selected
-	Total     int              `json:"total"`               // total tools available
+	Count     int              `json:"count"` // number of tools selected
+	Total     int              `json:"total"` // total tools available
 	Intent    string           `json:"intent"`
 	Rationale string           `json:"rationale,omitempty"` // explains which rules were applied
+
+	// OverrideBlock is the markdown "## Tool Overrides" section composed from
+	// Hints for the selected tools, ready to append to the system prompt.
+	// Empty when no Enricher is configured or no selected tool has Hints.
+	OverrideBlock string `json:"override_block,omitempty"`
 }

@@ -4,18 +4,18 @@
 
 ## Status
 
-Beta. The public API is stable enough to be embedded in consumer apps (the package godoc and integration guide describe mentat-chat consuming it via `*broker.LocalBroker`), the package comment flags a second "remote broker service" implementation as planned/future, and the package has broad unit-test coverage across every source file. Module path `github.com/hollis-labs/tool-broker` is the canonical standalone repo path and still suggests pre-v1.
+Beta. The public API is stable enough to be embedded in consumer apps (the package godoc and integration guide describe mentat-chat consuming it via `*broker.LocalBroker`), the package comment flags a second "remote broker service" implementation as planned/future, and the package has broad unit-test coverage across every source file.
 
 ## Install
 
 ```bash
-go get github.com/hollis-labs/tool-broker
+go get github.com/hollis-labs/go-toolbroker
 ```
 
 Then import the broker package:
 
 ```go
-import "github.com/hollis-labs/tool-broker/broker"
+import "github.com/hollis-labs/go-toolbroker/broker"
 ```
 
 ## Usage
@@ -29,7 +29,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/hollis-labs/tool-broker/broker"
+    "github.com/hollis-labs/go-toolbroker/broker"
 )
 
 func main() {
@@ -107,6 +107,21 @@ All exports live in the single `broker` package:
 - `EstimateToolTokens(tools) int`
 - `PruneToTokenBudget(tools, budgetTokens) []ToolDefinition`
 - `DefaultTokenBudgetPct`, `DefaultContextWindowTokens` constants.
+
+**Enrichment (`broker/hints.go`, `broker/enricher.go`, `broker/override.go`)**
+- `Hints{Preconditions, AntiPatterns, ChainsWith, OutputShape}` — per-tool metadata intended to shape the agent's use of a specific tool, without changing the tool's schema.
+- `MarshalHints(Hints) (string, error)` / `UnmarshalHints(string) (Hints, error)` — JSON codec for storage in a consumer-owned table.
+- `Enricher` interface — `LookupByToolName(ctx, name) (Hints, bool, error)`. Consumers back this with their own storage (SQLite, in-memory, remote service, etc.). A `NopEnricher` is provided as a safe default.
+- `ComposeOverrideBlock(ctx, toolNames, enr) (string, error)` — produces a compact markdown `## Tool Overrides` section summarizing hints for the named tools. Tools without hints are skipped.
+- `WithEnricher(Enricher) Option` — functional option on `NewLocalBroker`. When set, `SelectTools` populates `SelectResult.OverrideBlock` (markdown ready to append to the per-turn system prompt) from the selected tools' hints.
+
+Storage for enrichment records is **consumer-owned** — this package ships only the interface, composition, and the no-op default. A consumer that already persists per-tool metadata can satisfy `Enricher` with a single method.
+
+## Logging
+
+`go-toolbroker` uses the standard library `log/slog` package on the default handler. Only the enrichment compose-error path logs today (a `slog.WarnContext` at `"toolbroker: compose override block failed"`); selection never logs on the happy path. Enrichment failures are logged and then swallowed so selection remains successful — logging is observation, not control flow.
+
+Callers who want structured logging should configure their own handler via `slog.SetDefault(slog.New(...))` at process start; the broker will honor it automatically.
 
 ## Architecture Notes
 

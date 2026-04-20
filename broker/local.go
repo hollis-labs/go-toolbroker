@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path"
 	"sort"
 	"strings"
@@ -13,20 +14,36 @@ import (
 // It applies configurable rules to select tools based on intent and hints.
 // This is the primary implementation for embedding in applications like mentat-chat.
 type LocalBroker struct {
-	mu    sync.RWMutex
-	tools []ToolDefinition
-	rules []Rule
+	mu       sync.RWMutex
+	tools    []ToolDefinition
+	rules    []Rule
+	enricher Enricher
 }
 
 // Verify LocalBroker implements Broker.
 var _ Broker = (*LocalBroker)(nil)
 
-// NewLocalBroker creates a broker with the given tools and rules.
-func NewLocalBroker(tools []ToolDefinition, rules []Rule) *LocalBroker {
-	return &LocalBroker{
+// Option configures a LocalBroker at construction time.
+type Option func(*LocalBroker)
+
+// WithEnricher wires an Enricher into the broker. When set, SelectTools will
+// compose a "## Tool Overrides" markdown block from Hints for the selected
+// tools and expose it as SelectResult.OverrideBlock.
+func WithEnricher(e Enricher) Option {
+	return func(lb *LocalBroker) { lb.enricher = e }
+}
+
+// NewLocalBroker creates a broker with the given tools and rules. Optional
+// functional options (e.g. WithEnricher) configure additional behavior.
+func NewLocalBroker(tools []ToolDefinition, rules []Rule, opts ...Option) *LocalBroker {
+	lb := &LocalBroker{
 		tools: append([]ToolDefinition(nil), tools...),
 		rules: append([]Rule(nil), rules...),
 	}
+	for _, opt := range opts {
+		opt(lb)
+	}
+	return lb
 }
 
 // RegisterTools adds tools to the broker's registry.
@@ -74,7 +91,7 @@ func (b *LocalBroker) AllTools() []ToolSummary {
 //     (plus any that no include rule's patterns covered — include acts as a whitelist
 //     for its matched scope, not a global filter).
 //  6. Build result with rationale.
-func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []string) (*SelectResult, error) {
+func (b *LocalBroker) SelectTools(ctx context.Context, intent string, hints []string) (*SelectResult, error) {
 	b.mu.RLock()
 	tools := append([]ToolDefinition(nil), b.tools...)
 	rules := append([]Rule(nil), b.rules...)
@@ -112,12 +129,13 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 			Intent:    intent,
 			Rationale: "no rules matched intent; returning all tools",
 		}
+		b.composeOverrideBlock(ctx, result)
 		return result, nil
 	}
 
 	// Track which tools to keep/remove.
-	excluded := make(map[int]bool)   // index -> excluded
-	included := make(map[int]bool)   // index -> explicitly included
+	excluded := make(map[int]bool) // index -> excluded
+	included := make(map[int]bool) // index -> explicitly included
 	hasIncludeRule := false
 	var appliedRules []string
 
@@ -167,13 +185,35 @@ func (b *LocalBroker) SelectTools(_ context.Context, intent string, hints []stri
 
 	rationale := fmt.Sprintf("applied rules: %s", strings.Join(appliedRules, ", "))
 
-	return &SelectResult{
+	result := &SelectResult{
 		Tools:     selected,
 		Count:     len(selected),
 		Total:     total,
 		Intent:    intent,
 		Rationale: rationale,
-	}, nil
+	}
+	b.composeOverrideBlock(ctx, result)
+	return result, nil
+}
+
+// composeOverrideBlock populates result.OverrideBlock from the broker's
+// Enricher, if one is configured. Enrichment is cosmetic: a compose failure
+// is logged via slog.WarnContext on the default handler and then swallowed
+// so selection never fails on an enricher issue.
+func (b *LocalBroker) composeOverrideBlock(ctx context.Context, result *SelectResult) {
+	if b.enricher == nil || len(result.Tools) == 0 {
+		return
+	}
+	names := make([]string, len(result.Tools))
+	for i, t := range result.Tools {
+		names[i] = t.Name
+	}
+	block, err := ComposeOverrideBlock(ctx, names, b.enricher)
+	if err != nil {
+		slog.WarnContext(ctx, "toolbroker: compose override block failed", "err", err)
+		return
+	}
+	result.OverrideBlock = block
 }
 
 // intentMatches checks if a rule's intent pattern matches the given intent.
