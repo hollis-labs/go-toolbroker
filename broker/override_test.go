@@ -89,3 +89,48 @@ func TestComposeOverrideBlock_NilEnricher(t *testing.T) {
 		t.Errorf("expected empty with nil enricher, got: %s", got)
 	}
 }
+
+func TestComposeOverrideBlock_NilContext(t *testing.T) {
+	// A nil context must not panic and must not propagate to the Enricher:
+	// the public helper substitutes context.Background() defensively.
+	tools := []string{"tool_a"}
+	enr := mapEnricher{"tool_a": {OutputShape: "list of records"}}
+	//nolint:staticcheck // intentionally passing nil to exercise the guard
+	got, err := ComposeOverrideBlock(nil, tools, enr)
+	if err != nil {
+		t.Fatalf("ComposeOverrideBlock: %v", err)
+	}
+	if !strings.Contains(got, "list of records") {
+		t.Errorf("expected populated block, got: %q", got)
+	}
+}
+
+func TestComposeOverrideBlock_FiltersBlankEntries(t *testing.T) {
+	// Whitespace-only slice entries shouldn't produce dangling sections like
+	// "preconditions: " with no content; whitespace-only OutputShape should
+	// be dropped; a tool whose Hints contain only blanks is skipped entirely.
+	tools := []string{"tool_a", "tool_b"}
+	enr := mapEnricher{
+		"tool_a": {
+			OutputShape:   "  ",
+			Preconditions: []string{"", "  "},
+			AntiPatterns:  []string{"real warning", ""},
+		},
+		"tool_b": {
+			Preconditions: []string{"", "\t"},
+		},
+	}
+	got, err := ComposeOverrideBlock(context.Background(), tools, enr)
+	if err != nil {
+		t.Fatalf("ComposeOverrideBlock: %v", err)
+	}
+	if strings.Contains(got, "preconditions: ") && !strings.Contains(got, "preconditions: real") {
+		t.Errorf("dangling preconditions section in output:\n%s", got)
+	}
+	if !strings.Contains(got, "real warning") {
+		t.Errorf("missing real content:\n%s", got)
+	}
+	if strings.Contains(got, "tool_b") {
+		t.Errorf("tool_b had only blank entries and should have been skipped:\n%s", got)
+	}
+}

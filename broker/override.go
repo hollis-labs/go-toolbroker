@@ -25,6 +25,13 @@ import (
 // and OutputShape are joined into one line; ChainsWith is appended at the end
 // only if present.
 func ComposeOverrideBlock(ctx context.Context, toolNames []string, enr Enricher) (string, error) {
+	// ctx is forwarded to Enricher implementations, which may be consumer-owned
+	// and may panic on a nil context (e.g. database/sql callers). Treat nil as
+	// context.Background() so the public helper is robust to that pathological
+	// input without hiding cancellation bugs on real contexts.
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if enr == nil || len(toolNames) == 0 {
 		return "", nil
 	}
@@ -64,19 +71,33 @@ func ComposeOverrideBlock(ctx context.Context, toolNames []string, enr Enricher)
 // summarizeHints compacts a Hints struct to a one-line summary targeting ~40 tokens.
 // Order: OutputShape → AntiPatterns → Preconditions → ChainsWith.
 // Semicolons separate sections; commas separate items within a section.
+// Whitespace-only entries within slices are filtered so the summary never
+// emits a dangling "anti-patterns: " with no content.
 func summarizeHints(h Hints) string {
 	var parts []string
-	if h.OutputShape != "" {
-		parts = append(parts, h.OutputShape)
+	if shape := strings.TrimSpace(h.OutputShape); shape != "" {
+		parts = append(parts, shape)
 	}
-	if len(h.AntiPatterns) > 0 {
-		parts = append(parts, "anti-patterns: "+strings.Join(h.AntiPatterns, ", "))
+	if vs := nonBlankEntries(h.AntiPatterns); len(vs) > 0 {
+		parts = append(parts, "anti-patterns: "+strings.Join(vs, ", "))
 	}
-	if len(h.Preconditions) > 0 {
-		parts = append(parts, "preconditions: "+strings.Join(h.Preconditions, ", "))
+	if vs := nonBlankEntries(h.Preconditions); len(vs) > 0 {
+		parts = append(parts, "preconditions: "+strings.Join(vs, ", "))
 	}
-	if len(h.ChainsWith) > 0 {
-		parts = append(parts, "chains with: "+strings.Join(h.ChainsWith, ", "))
+	if vs := nonBlankEntries(h.ChainsWith); len(vs) > 0 {
+		parts = append(parts, "chains with: "+strings.Join(vs, ", "))
 	}
 	return strings.Join(parts, "; ")
+}
+
+// nonBlankEntries returns ss with whitespace-only entries removed; each kept
+// entry is trimmed.
+func nonBlankEntries(ss []string) []string {
+	out := ss[:0:0]
+	for _, s := range ss {
+		if t := strings.TrimSpace(s); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

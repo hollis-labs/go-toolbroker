@@ -52,6 +52,10 @@ func TestHints_IsEmpty(t *testing.T) {
 		{"only shape", Hints{OutputShape: "x"}, false},
 		{"only precondition", Hints{Preconditions: []string{"a"}}, false},
 		{"empty slices", Hints{Preconditions: []string{}, AntiPatterns: []string{}}, true},
+		{"empty string entry", Hints{Preconditions: []string{""}}, true},
+		{"whitespace entries", Hints{AntiPatterns: []string{"  ", "\t"}}, true},
+		{"whitespace OutputShape", Hints{OutputShape: "   "}, true},
+		{"mixed blank and real entry", Hints{ChainsWith: []string{"", "dev_read"}}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

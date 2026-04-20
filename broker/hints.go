@@ -3,6 +3,7 @@ package broker
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Hints carries tool-specific guidance surfaced to the LLM via the broker's
@@ -27,12 +28,26 @@ type Hints struct {
 	OutputShape string `json:"output_shape,omitempty"`
 }
 
-// IsEmpty returns true if none of the hint fields carry content.
+// IsEmpty returns true if none of the hint fields carry content. Slices of
+// only whitespace-only entries (e.g. []string{""} or []string{"  "}) are
+// treated as empty, as is a whitespace-only OutputShape — those inputs would
+// otherwise render as dangling "preconditions: " lines in the override block.
 func (h Hints) IsEmpty() bool {
-	return len(h.Preconditions) == 0 &&
-		len(h.AntiPatterns) == 0 &&
-		len(h.ChainsWith) == 0 &&
-		h.OutputShape == ""
+	return !hasNonBlankEntry(h.Preconditions) &&
+		!hasNonBlankEntry(h.AntiPatterns) &&
+		!hasNonBlankEntry(h.ChainsWith) &&
+		strings.TrimSpace(h.OutputShape) == ""
+}
+
+// hasNonBlankEntry reports whether ss contains at least one entry that is
+// non-empty after trimming whitespace.
+func hasNonBlankEntry(ss []string) bool {
+	for _, s := range ss {
+		if strings.TrimSpace(s) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // MarshalHints encodes Hints to a JSON string suitable for storage by
