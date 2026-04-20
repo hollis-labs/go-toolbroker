@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -319,5 +320,58 @@ func TestSelectToolsEmptyRegistry(t *testing.T) {
 	}
 	if result.Rationale != "no tools registered" {
 		t.Errorf("unexpected rationale: %q", result.Rationale)
+	}
+}
+
+// stubEnricher is a small in-memory Enricher used by LocalBroker enrichment tests.
+type stubEnricher map[string]Hints
+
+func (s stubEnricher) LookupByToolName(_ context.Context, name string) (Hints, bool, error) {
+	h, ok := s[name]
+	return h, ok, nil
+}
+
+func TestLocalBroker_OverrideBlockPopulated(t *testing.T) {
+	enr := stubEnricher{
+		"volon_tasks_list": {OutputShape: "list of tasks"},
+	}
+	b := NewLocalBroker(testTools(), nil, WithEnricher(enr))
+	result, err := b.SelectTools(context.Background(), "anything", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.OverrideBlock == "" {
+		t.Fatal("expected OverrideBlock to be populated, got empty")
+	}
+	if !strings.Contains(result.OverrideBlock, "## Tool Overrides") {
+		t.Errorf("missing header in OverrideBlock:\n%s", result.OverrideBlock)
+	}
+	if !strings.Contains(result.OverrideBlock, "volon_tasks_list") {
+		t.Errorf("missing tool name in OverrideBlock:\n%s", result.OverrideBlock)
+	}
+	if !strings.Contains(result.OverrideBlock, "list of tasks") {
+		t.Errorf("missing hint content in OverrideBlock:\n%s", result.OverrideBlock)
+	}
+}
+
+func TestLocalBroker_OverrideBlockEmptyWithoutEnricher(t *testing.T) {
+	b := NewLocalBroker(testTools(), nil)
+	result, err := b.SelectTools(context.Background(), "anything", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.OverrideBlock != "" {
+		t.Errorf("expected empty OverrideBlock without enricher, got:\n%s", result.OverrideBlock)
+	}
+}
+
+func TestLocalBroker_OverrideBlockEmptyWithoutEnrichedTools(t *testing.T) {
+	b := NewLocalBroker(testTools(), nil, WithEnricher(stubEnricher{}))
+	result, err := b.SelectTools(context.Background(), "anything", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.OverrideBlock != "" {
+		t.Errorf("expected empty OverrideBlock when no tool has hints, got:\n%s", result.OverrideBlock)
 	}
 }
