@@ -1,5 +1,10 @@
-# Default routing rules for the Fragments Engine tool broker.
-# These are loaded automatically when no custom config is provided.
+# Example rule set returned by broker.DefaultRules().
+#
+# These rules reference a specific MCP toolset (the author's internal one)
+# and are bundled as a worked example of the rule format — not as defaults
+# that are useful in arbitrary consumer environments. Treat this file as
+# documentation: study the patterns, then write your own rules and load
+# them via broker.LoadRulesFromFile or construct []broker.Rule directly.
 #
 # Rule structure:
 #   name:     unique identifier for the rule

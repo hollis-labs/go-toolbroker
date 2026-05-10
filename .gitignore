@@ -1,0 +1,29 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent / session artifacts (do not commit to a public repo)
+.agentrc/
+.claude/
+agentrc.yaml
+agentrc.yml
+CLAUDE.md
+AGENTS.md
+AUDIT_RESULTS.md

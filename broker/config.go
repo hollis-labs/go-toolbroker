@@ -60,10 +60,15 @@ func LoadRulesFromFile(path string) ([]Rule, error) {
 	return cfg.Rules, nil
 }
 
-// DefaultRules returns sensible defaults for Fragments Engine projects loaded from
-// the embedded default-rules.yaml. These replicate the current mentat-chat
-// behavior (exclude hadron_bp_*) and add intent-specific selections for
-// common workflows.
+// DefaultRules returns the rules embedded in default-rules.yaml as a starting
+// point for callers that don't ship their own ruleset.
+//
+// The bundled defaults are example rules drawn from a specific MCP toolset
+// (the author's internal one) and demonstrate the rule format — global
+// excludes, intent-scoped includes, priority ordering. They are unlikely to
+// be useful as-is in another consumer's environment; treat them as a worked
+// example and supply your own rules via LoadRulesFromFile or by constructing
+// []Rule directly.
 func DefaultRules() []Rule {
 	var cfg Config
 	if err := yaml.Unmarshal(defaultRulesYAML, &cfg); err != nil {

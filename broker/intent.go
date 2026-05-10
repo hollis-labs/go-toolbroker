@@ -59,7 +59,7 @@ var intentKeywords = map[string][]string{
 		"schedule", "automate", "cron", "recurring",
 		"pipeline", "scheduled run", "nightly",
 	},
-	// Hadron blueprint intents — match rules in default-rules.yaml.
+	// Build / test / lint / release intents — match rules in default-rules.yaml.
 	"run-tests": {
 		"run tests", "run test", "go test", "npm test", "test suite",
 		"unit tests", "integration tests", "test project", "check tests",
