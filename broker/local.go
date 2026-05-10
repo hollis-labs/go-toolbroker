@@ -12,7 +12,8 @@ import (
 
 // LocalBroker is a rule-based tool broker that runs in-process.
 // It applies configurable rules to select tools based on intent and hints.
-// This is the primary implementation for embedding in applications like mentat-chat.
+// This is the primary implementation, intended to be embedded directly in
+// any Go application that talks to MCP servers.
 type LocalBroker struct {
 	mu       sync.RWMutex
 	tools    []ToolDefinition
@@ -244,7 +245,7 @@ func toolMatchesRule(tool ToolDefinition, m Match, hints []string) bool {
 				nameMatched = true
 				break
 			}
-			// Also support prefix patterns like "hadron_bp_*" matching "hadron_bp_build_volon"
+			// Also support prefix patterns like "foo_bar_*" matching "foo_bar_baz_qux".
 			// path.Match requires exact segment matching, so also try HasPrefix
 			// for patterns ending in "*".
 			if strings.HasSuffix(pattern, "*") {

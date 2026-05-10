@@ -1,12 +1,3 @@
-// Package broker provides intent-aware MCP tool selection.
-//
-// The broker selects relevant tools from a registry based on intent,
-// hints, and configurable rules. This replaces hardcoded exclude-pattern
-// filtering with a flexible, rule-driven approach.
-//
-// Two implementations are planned:
-//   - LocalBroker: in-process, config-driven (this package)
-//   - Remote broker service: HTTP-based, cross-app (future)
 package broker
 
 import "context"

@@ -10,13 +10,13 @@ The broker ships with embedded default rules. You can also load custom rules
 from a YAML or JSON file.
 
 ```go
-import "github.com/hollis-labs/tool-broker/broker"
+import "github.com/hollis-labs/go-toolbroker/broker"
 
 // Option A: Use built-in defaults (recommended starting point).
 b := broker.NewLocalBroker(nil, broker.DefaultRules())
 
 // Option B: Load custom rules from a YAML file.
-rules, err := broker.LoadRulesFromFile("~/.config/fragments/tool-broker-rules.yaml")
+rules, err := broker.LoadRulesFromFile("~/.config/myapp/tool-broker-rules.yaml")
 if err != nil {
     log.Fatalf("load rules: %v", err)
 }
@@ -92,9 +92,10 @@ SelectResult{Tools, Count, Total, Rationale}
 Inject selected tools into LLM system prompt
 ```
 
-### How mentat-chat uses this today
+### Suggested embedding pattern
 
-In `internal/mcp/manager.go`, the `Manager` holds a `*broker.LocalBroker`:
+A typical embedder wraps a `*broker.LocalBroker` in a service-local
+`Manager`-style type that owns tool discovery and per-server transports:
 
 ```go
 type Manager struct {
@@ -105,7 +106,7 @@ type Manager struct {
 }
 ```
 
-Tool selection is done via `GetToolsForIntent`:
+Tool selection then becomes a thin shim around `SelectTools`:
 
 ```go
 func (m *Manager) GetToolsForIntent(intent string, hints []string) []provider.ToolDefinition {
@@ -137,11 +138,12 @@ import (
     "context"
     "fmt"
 
-    "github.com/hollis-labs/tool-broker/broker"
+    "github.com/hollis-labs/go-toolbroker/broker"
 )
 
 func main() {
-    // Create broker with default Fragments Engine rules.
+    // Create broker with the bundled example rules. Most callers will
+    // replace this with rules tailored to their own MCP toolset.
     b := broker.NewLocalBroker(nil, broker.DefaultRules())
 
     // Register tools (normally from MCP server discovery).
@@ -257,12 +259,17 @@ Use `broker.LoadRulesFromFile(path)` — format is auto-detected by extension.
 
 ### Default rules
 
-The broker ships with 13 default rules covering common Fragments Engine intents.
-See `broker/default-rules.yaml` for the full list. Key defaults:
+The broker ships with a bundled example rule set drawn from the author's
+internal MCP toolset. It is not intended as production defaults — most
+callers will write their own. See `broker/default-rules.yaml` for the full
+list. Representative entries from the example set:
 
-- **hide-blueprint-runners**: Excludes all `hadron_bp_*` tools (global).
-- **create-task**: Routes to `volon_task_create`, `volon_tasks_list`, `volon_backlog_capture`.
-- **search-context**: Routes to `cortex_*` tools.
+- **hide-blueprint-runners**: Global exclude of a `*_bp_*` blueprint-runner
+  family.
+- **create-task** / **list-tasks** / **manage-tasks**: Intent-scoped includes
+  for a task-tracker server's tools.
+- **search-context** / **write-context**: Intent-scoped includes for a
+  context-store server's tools.
 - **run-blueprint**: Routes to `hadron_blueprints_list`, `hadron_run_*` tools.
 - **check-health**: Routes to `hadron_health`, `volon_health`.
 
@@ -390,7 +397,6 @@ result, _ := b.SelectTools(ctx, intent, nil)
 tools := broker.PruneToTokenBudget(result.Tools, tokenBudget)
 ```
 
-This is the universal pattern used by all Fragments Engine consumers.
-Mentat's ToolClient and Volon's ToolClient both follow this pattern,
-adding consumer-specific concerns (permissions, builtins, MCP routing)
-on top.
+This is the recommended pattern: a thin per-application `ToolClient` /
+`Manager` that owns transports and per-application concerns (permissions,
+builtins, MCP routing) and embeds a `*broker.LocalBroker` for selection.
