@@ -34,9 +34,8 @@ There is no CI workflow in this repo, so these are the only gate.
 
 ## Boundaries
 
-Only `LocalBroker` exists. A remote/HTTP broker is on the roadmap but is not
-implemented — do not write code that assumes the `Broker` interface is already
-satisfied over a network.
+Only `LocalBroker` exists — do not write code that assumes the `Broker`
+interface is already satisfied over a network.
 
 Rules are priority-ordered and evaluated as a set: an exclude and an include
 can both match, and the combined outcome is what
