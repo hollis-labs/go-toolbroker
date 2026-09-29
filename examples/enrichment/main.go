@@ -42,7 +42,7 @@ func main() {
 				AntiPatterns: []string{
 					"Do not call this for status updates — use tasks_transition.",
 				},
-				ChainsWith: []string{"tasks_get", "tasks_transition"},
+				ChainsWith:  []string{"tasks_get", "tasks_transition"},
 				OutputShape: "Returns {id, title, status, created_at}.",
 			},
 			"build_go_project": {
