@@ -1,5 +1,21 @@
 # go-toolbroker
 
+## Moved to substrate
+
+This standalone repository is deprecated. New development lives in the
+[`github.com/hollis-labs/substrate/agent`](https://github.com/hollis-labs/substrate/tree/agent/v0.2.0/agent)
+module, released as **`agent/v0.2.0`**.
+
+```sh
+go get github.com/hollis-labs/substrate/agent@v0.2.0
+```
+
+Follow the [package and API migration guide](https://github.com/hollis-labs/substrate/blob/agent/v0.2.0/agent/toolbroker/MIGRATION.md) when updating imports;
+the consolidation can include API changes. Existing standalone tags and history
+are preserved. The documentation below describes the standalone releases and
+is retained for historical reference. Applications migrate separately; this
+redirect does not deploy or update any consumer.
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/hollis-labs/go-toolbroker.svg)](https://pkg.go.dev/github.com/hollis-labs/go-toolbroker)
 
 `go-toolbroker` is an in-process Go library for **intent-aware MCP tool selection**. Given a registry of MCP tool definitions and a priority-ordered set of rules, it selects the subset of tools relevant to a user's detected intent — replacing hardcoded exclude lists with a flexible rule engine. It also ships keyword-based intent detection, token-budget estimation, progressive-discovery scoring helpers, and an optional per-tool enrichment pipeline (`Hints` → markdown override block).
